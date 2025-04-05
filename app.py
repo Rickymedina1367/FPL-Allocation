@@ -19,7 +19,9 @@ banks = {
 }
 
 deposit_order = ["Tristate", "Customer's", "Wells Fargo", "Tristate", "Customer's", "Wells Fargo"]
-withdraw_order = ["BMO", "Customer's", "Tristate", "Wells Fargo"]
+
+# ✅ Updated withdrawal priority
+withdraw_order = ["BMO", "Wells Fargo", "Customer's", "Tristate"]
 
 results = {bank: {"action": "No Action", "amount": 0.0, "ending": banks[bank]["balance"]} for bank in banks}
 movement = net_movement
@@ -41,7 +43,11 @@ elif movement < 0:
     for bank in withdraw_order:
         current = results[bank]["ending"]
         floor = banks[bank]["target"]
-        pull = min(abs(movement), current - floor)
+        # ✅ Only Tristate is allowed to go below target
+        if bank == "Tristate":
+            pull = min(abs(movement), current)
+        else:
+            pull = min(abs(movement), max(current - floor, 0))
         if pull > 0:
             results[bank]["action"] = "Withdraw"
             results[bank]["amount"] -= pull
