@@ -6,36 +6,12 @@ st.set_page_config(page_title="FPL Allocation Tool", layout="centered")
 st.title("FPL Allocation Tool")
 st.header("Enter Current Balances")
 
-# Default values
-defaults = {
-    "tristate": 460_000_000.00,
-    "customers": 50_000_000.00,
-    "wells": 100_000_000.00,
-    "bmo": 100_000.00,
-    "net": 0.00
-}
-
-# Initialize session state
-for key, value in defaults.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
-
-# Clear Balances function
-def clear_balances():
-    for key in defaults:
-        st.session_state[key] = defaults[key]
-    st.experimental_rerun()
-
-# Clear Balances Button
-if st.button("Clear Balances"):
-    clear_balances()
-
-# Inputs
-tristate = st.number_input("Tristate", value=st.session_state.tristate, step=1.0, key="tristate")
-customers = st.number_input("Customer's Bank", value=st.session_state.customers, step=1.0, key="customers")
-wells = st.number_input("Wells Fargo", value=st.session_state.wells, step=1.0, key="wells")
-bmo = st.number_input("BMO", value=st.session_state.bmo, step=1.0, key="bmo")
-net = st.number_input("Net Daily Movement", value=st.session_state.net, step=1.0, key="net")
+# Input fields
+tristate = st.number_input("Tristate", value=460_000_000.00, step=1.0)
+customers = st.number_input("Customer's Bank", value=50_000_000.00, step=1.0)
+wells = st.number_input("Wells Fargo", value=100_000_000.00, step=1.0)
+bmo = st.number_input("BMO", value=100_000.00, step=1.0)
+net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
 
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
 balances = [tristate, customers, wells, bmo]
