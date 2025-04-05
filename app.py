@@ -4,11 +4,11 @@ import pandas as pd
 st.set_page_config(page_title="FPL Allocation Tool", layout="centered")
 st.title("FPL Allocation Tool")
 
-# Formatted number input (no commas in input)
+# Formatted number input
 def formatted_number_input(label, value=0.0):
     return st.number_input(label, value=value, format="%.2f")
 
-# Inputs
+# User inputs
 st.header("Enter Current Balances")
 tristate = formatted_number_input("Tristate")
 customers = formatted_number_input("Customer's Bank")
@@ -17,7 +17,7 @@ bmo = formatted_number_input("BMO")
 net_movement = formatted_number_input("Net Daily Movement")
 
 # Placeholder for results
-results = []
+results = {}
 
 # DEPOSIT LOGIC
 if net_movement > 0:
@@ -28,6 +28,7 @@ if net_movement > 0:
     }
     deposit_order = ["Tristate", "Customer's", "Wells Fargo", "Tristate", "Customer's", "Wells Fargo"]
     results = {bank: {"action": "No Action", "amount": 0.0, "ending": banks[bank]["balance"]} for bank in banks}
+    results["BMO"] = {"action": "No Action", "amount": 0.0, "ending": bmo}
     movement = net_movement
 
     for bank in deposit_order:
@@ -43,13 +44,11 @@ if net_movement > 0:
         if movement <= 0:
             break
 
-    results["BMO"] = {"action": "No Action", "amount": 0.0, "ending": bmo}
-
 # WITHDRAWAL LOGIC
 elif net_movement < 0:
-    movement = -net_movement  # convert to positive for calculations
+    movement = -net_movement  # positive
 
-    # Max withdrawal allowed per rule
+    # Calculate allowed withdrawals
     withdraw_bmo = min(movement, max(0, bmo - 100_000))
     movement -= withdraw_bmo
 
@@ -59,9 +58,9 @@ elif net_movement < 0:
     withdraw_customers = min(movement, max(0, customers - 25_000_000))
     movement -= withdraw_customers
 
-    withdraw_tristate = movement  # whatever is left
+    withdraw_tristate = movement  # whatever remains
 
-    # Compute ending balances
+    # Build result structure
     results = {
         "Tristate": {
             "action": "Withdraw" if withdraw_tristate > 0 else "No Action",
@@ -85,27 +84,26 @@ elif net_movement < 0:
         },
     }
 
-# Convert results to table format
-df = pd.DataFrame([
-    {
-        "Bank": bank,
-        "Action": results[bank]["action"],
-        "Amount": f"${results[bank]['amount']:,.2f}",
-        "Ending Balance": f"${results[bank]['ending']:,.2f}"
-    }
-    for bank in results
-])
+# Convert and display if results exist
+if results:
+    df = pd.DataFrame([
+        {
+            "Bank": bank,
+            "Action": results[bank]["action"],
+            "Amount": f"${results[bank]['amount']:,.2f}",
+            "Ending Balance": f"${results[bank]['ending']:,.2f}"
+        }
+        for bank in results
+    ])
 
-# Add color styling
-def highlight_action(row):
-    if row["Action"] == "Withdraw":
-        return ["background-color: #ffe6e6"] * 4
-    elif row["Action"] == "Deposit":
-        return ["background-color: #e6ffe6"] * 4
-    return [""] * 4
+    # Highlight deposits and withdrawals
+    def highlight_action(row):
+        if row["Action"] == "Withdraw":
+            return ["background-color: #ffe6e6"] * 4
+        elif row["Action"] == "Deposit":
+            return ["background-color: #e6ffe6"] * 4
+        return [""] * 4
 
-# Display table
-if df["Action"].nunique() > 1 or df["Action"].iloc[0] != "No Action":
     st.header("Allocation Results")
     st.dataframe(df.style.apply(highlight_action, axis=1), use_container_width=True)
 else:
