@@ -3,152 +3,112 @@ import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
 
-# Initialize session state defaults
-if "tristate" not in st.session_state:
-    st.session_state.tristate = 0.0
-    st.session_state.customers = 0.0
-    st.session_state.wells = 0.0
-    st.session_state.bmo = 0.0
-    st.session_state.net = 0.0
-
-# Title
 st.title("FPL Allocation Tool")
 
-# Layout using columns
+# Split layout into two columns
 col1, col2 = st.columns(2)
 
 with col1:
     st.header("Enter Current Balances")
+    tristate = st.number_input("Tristate", value=460_000_000.00, step=1.0)
+    customers = st.number_input("Customer's Bank", value=50_000_000.00, step=1.0)
+    wells = st.number_input("Wells Fargo", value=100_000_000.00, step=1.0)
+    bmo = st.number_input("BMO", value=100_000.00, step=1.0)
+    net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
 
-    st.markdown("#### Tristate Capital")
-    tristate = st.number_input("", key="tristate", value=st.session_state.tristate, format="%.2f")
-
-    st.markdown("#### Customer's Bank")
-    customers = st.number_input("", key="customers", value=st.session_state.customers, format="%.2f")
-
-    st.markdown("#### Wells Fargo")
-    wells = st.number_input("", key="wells", value=st.session_state.wells, format="%.2f")
-
-    st.markdown("#### BMO")
-    bmo = st.number_input("", key="bmo", value=st.session_state.bmo, format="%.2f")
-
-    st.markdown("#### Net Daily Movement")
-    net = st.number_input("", key="net", value=st.session_state.net, format="%.2f")
-
-# Allocation logic
-actions = []
-amounts = []
-end_balances = []
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
 balances = [tristate, customers, wells, bmo]
+actions = []
+amounts = []
+ending_balances = []
 
-if net != 0:
-    remaining = net
-    result = [0, 0, 0, 0]  # Movement per bank
+remaining = net
 
-    if net > 0:
-        # Deposit logic
-        targets = [400_000_000, 25_000_000, 75_000_000, 0]  # Initial deposit caps
-        max_caps = [460_000_000, 50_000_000, float("inf"), 0]  # After others are met
+if net < 0:
+    targets = [100_000, 100_000, 25_000_000, -float("inf")]
+    for i, (bank, balance, target) in enumerate(zip(banks[::-1], balances[::-1], targets)):
+        available = balance - target
+        take = min(-remaining, available)
+        take = max(0, take)
+        actions.insert(0, "Withdraw")
+        amounts.insert(0, -take)
+        ending_balances.insert(0, balance - take)
+        remaining += take
+        if remaining >= 0:
+            break
+    while len(actions) < 4:
+        actions.insert(0, "No Action")
+        amounts.insert(0, 0.0)
+        ending_balances.insert(0, balances[3 - len(actions)])
+else:
+    initial_targets = [400_000_000, 25_000_000, 75_000_000]
+    deposits = [0, 0, 0, 0]
 
-        # Step 1: Tristate to 400MM
-        if tristate < 400_000_000:
-            to_add = min(400_000_000 - tristate, remaining)
-            result[0] += to_add
-            remaining -= to_add
+    if tristate < 400_000_000:
+        d = min(400_000_000 - tristate, remaining)
+        deposits[0] += d
+        remaining -= d
 
-        # Step 2: Customer's to 25MM
-        if customers < 25_000_000:
-            to_add = min(25_000_000 - customers, remaining)
-            result[1] += to_add
-            remaining -= to_add
+    if customers < 25_000_000 and remaining > 0:
+        d = min(25_000_000 - customers, remaining)
+        deposits[1] += d
+        remaining -= d
 
-        # Step 3: Wells to 75MM
-        if wells < 75_000_000:
-            to_add = min(75_000_000 - wells, remaining)
-            result[2] += to_add
-            remaining -= to_add
+    if wells < 75_000_000 and remaining > 0:
+        d = min(75_000_000 - wells, remaining)
+        deposits[2] += d
+        remaining -= d
 
-        # Step 4: Tristate to 460MM
-        if tristate >= 400_000_000 and remaining > 0:
-            to_add = min(460_000_000 - (tristate + result[0]), remaining)
-            result[0] += to_add
-            remaining -= to_add
+    if tristate + deposits[0] < 460_000_000 and remaining > 0:
+        d = min(460_000_000 - (tristate + deposits[0]), remaining)
+        deposits[0] += d
+        remaining -= d
 
-        # Step 5: Customer's to 50MM
-        if customers >= 25_000_000 and remaining > 0:
-            to_add = min(50_000_000 - (customers + result[1]), remaining)
-            result[1] += to_add
-            remaining -= to_add
+    if customers + deposits[1] < 50_000_000 and remaining > 0:
+        d = min(50_000_000 - (customers + deposits[1]), remaining)
+        deposits[1] += d
+        remaining -= d
 
-        # Step 6: Wells beyond 75MM
-        if remaining > 0:
-            result[2] += remaining
-            remaining = 0
+    if remaining > 0:
+        deposits[2] += remaining
+        remaining = 0
 
-    else:
-        # Withdraw logic
-        remaining = abs(net)
-
-        # Step 1: BMO to 100K
-        bmo_pull = min(bmo - 100_000, remaining)
-        result[3] -= bmo_pull
-        remaining -= bmo_pull
-
-        # Step 2: Wells to 100K
-        wells_pull = min(wells - 100_000, remaining)
-        result[2] -= wells_pull
-        remaining -= wells_pull
-
-        # Step 3: Customer's to 25MM
-        cust_pull = min(customers - 25_000_000, remaining)
-        result[1] -= cust_pull
-        remaining -= cust_pull
-
-        # Step 4: Tristate no floor
-        result[0] -= remaining
-
-    # Build action, amount, ending balance
-    for i in range(4):
-        amt = result[i]
-        bal = balances[i] + amt
-        if amt > 0:
-            act = "Deposit"
-        elif amt < 0:
-            act = "Withdraw"
+    for i, d in enumerate(deposits):
+        if d > 0:
+            actions.append("Deposit")
+            amounts.append(d)
+            ending_balances.append(balances[i] + d)
         else:
-            act = "No Action"
-        actions.append(act)
-        amounts.append(amt)
-        end_balances.append(bal)
+            actions.append("No Action")
+            amounts.append(0.0)
+            ending_balances.append(balances[i])
 
-    # Prepare table
+# Create DataFrame
+with col2:
+    st.markdown("### Allocation Results")
     df = pd.DataFrame({
         "Bank": banks,
         "Action": actions,
-        "Amount": amounts,
-        "Ending Balance": end_balances
+        "Amount": [f"${x:,.2f}" for x in amounts],
+        "Ending Balance": [f"${x:,.2f}" for x in ending_balances],
     })
 
-    total = sum(amounts)
-    df.loc[len(df.index)] = ["TOTAL", "", total, ""]
+    total_amount = sum(amounts)
+    df.loc[len(df.index)] = {
+        "Bank": "TOTAL",
+        "Action": "",
+        "Amount": f"${total_amount:,.2f}",
+        "Ending Balance": ""
+    }
 
-    # Format numbers and highlight
-    def highlight(row):
-        color = "background-color: #d1ffd6" if row["Action"] == "Deposit" else ("background-color: #ffd6d6" if row["Action"] == "Withdraw" else "")
-        return [color] * len(row)
-
-    df["Amount"] = df["Amount"].apply(lambda x: f"${x:,.2f}")
-    df["Ending Balance"] = df["Ending Balance"].apply(lambda x: f"${x:,.2f}" if x != "" else "")
-
-    with col2:
-        st.header("Allocation Results")
-        st.dataframe(df.style.apply(highlight, axis=1), hide_index=True, use_container_width=True)
-
-        # Summary callout
-        if net > 0:
-            st.success(f"Depositing a total of ${total:,.2f} across banks.")
-        elif net < 0:
-            st.error(f"Withdrawing a total of ${abs(total):,.2f} across banks.")
+    def highlight_rows(row):
+        if row["Action"] == "Deposit":
+            return ["background-color: #d4f8d4"] * len(row)
+        elif row["Action"] == "Withdraw":
+            return ["background-color: #f8d4d4"] * len(row)
+        elif row["Bank"] == "TOTAL":
+            return ["background-color: #e0e0e0"] * len(row)
         else:
-            st.info("No movement required today.")
+            return [""] * len(row)
+
+    st.dataframe(df.style.apply(highlight_rows, axis=1), hide_index=True, use_container_width=True)
