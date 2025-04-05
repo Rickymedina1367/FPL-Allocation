@@ -6,27 +6,29 @@ st.set_page_config(page_title="FPL Allocation Tool", layout="centered")
 st.title("FPL Allocation Tool")
 st.header("Enter Current Balances")
 
-# Function to reset values
+# Initialize session state defaults
+defaults = {
+    "tristate": 460_000_000.00,
+    "customers": 50_000_000.00,
+    "wells": 100_000_000.00,
+    "bmo": 100_000.00,
+    "net": 0.00,
+}
+for key, val in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
+
+# Reset values function
 def clear_balances():
-    st.session_state.tristate = 0.0
-    st.session_state.customers = 0.0
-    st.session_state.wells = 0.0
-    st.session_state.bmo = 0.0
-    st.session_state.net = 0.0
+    for key in defaults:
+        st.session_state[key] = defaults[key]
 
-# Inputs with default values stored in session state
-if "tristate" not in st.session_state:
-    st.session_state.tristate = 460_000_000.00
-    st.session_state.customers = 50_000_000.00
-    st.session_state.wells = 100_000_000.00
-    st.session_state.bmo = 100_000.00
-    st.session_state.net = 0.00
-
-tristate = st.number_input("Tristate", value=st.session_state.tristate, format="%.2f", key="tristate")
-customers = st.number_input("Customer's Bank", value=st.session_state.customers, format="%.2f", key="customers")
-wells = st.number_input("Wells Fargo", value=st.session_state.wells, format="%.2f", key="wells")
-bmo = st.number_input("BMO", value=st.session_state.bmo, format="%.2f", key="bmo")
-net = st.number_input("Net Daily Movement", value=st.session_state.net, format="%.2f", key="net")
+# Inputs
+tristate = st.number_input("Tristate", value=st.session_state["tristate"], format="%.2f", key="tristate")
+customers = st.number_input("Customer's Bank", value=st.session_state["customers"], format="%.2f", key="customers")
+wells = st.number_input("Wells Fargo", value=st.session_state["wells"], format="%.2f", key="wells")
+bmo = st.number_input("BMO", value=st.session_state["bmo"], format="%.2f", key="bmo")
+net = st.number_input("Net Daily Movement", value=st.session_state["net"], format="%.2f", key="net")
 
 # Clear button
 if st.button("Clear Balances"):
