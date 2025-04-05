@@ -4,22 +4,30 @@ import pandas as pd
 st.set_page_config(page_title="FPL Allocation Tool", layout="centered")
 st.title("FPL Allocation Tool")
 
-# Formatted number input
-def formatted_number_input(label, value=0.0):
-    return st.number_input(label, value=value, format="%.2f")
+# --- Clear state ---
+if "clear" not in st.session_state:
+    st.session_state.clear = False
 
-# User inputs
+if st.button("Clear Balances"):
+    st.session_state.clear = True
+else:
+    st.session_state.clear = False
+
+# --- Input fields ---
+def formatted_number_input(label, key, default=0.0):
+    return st.number_input(label, value=0.0 if st.session_state.clear else default, format="%.2f", key=key)
+
 st.header("Enter Current Balances")
-tristate = formatted_number_input("Tristate")
-customers = formatted_number_input("Customer's Bank")
-wells = formatted_number_input("Wells Fargo")
-bmo = formatted_number_input("BMO")
-net_movement = formatted_number_input("Net Daily Movement")
+tristate = formatted_number_input("Tristate", "tristate")
+customers = formatted_number_input("Customer's Bank", "customers")
+wells = formatted_number_input("Wells Fargo", "wells")
+bmo = formatted_number_input("BMO", "bmo")
+net_movement = formatted_number_input("Net Daily Movement", "net_movement")
 
-# Placeholder for results
+# --- Logic ---
 results = {}
 
-# DEPOSIT LOGIC
+# --- Deposits ---
 if net_movement > 0:
     banks = {
         "Tristate": {"balance": tristate, "target": 400_000_000, "max": 460_000_000},
@@ -44,11 +52,10 @@ if net_movement > 0:
         if movement <= 0:
             break
 
-# WITHDRAWAL LOGIC
+# --- Withdrawals ---
 elif net_movement < 0:
-    movement = -net_movement  # positive
+    movement = -net_movement
 
-    # Calculate allowed withdrawals
     withdraw_bmo = min(movement, max(0, bmo - 100_000))
     movement -= withdraw_bmo
 
@@ -58,9 +65,8 @@ elif net_movement < 0:
     withdraw_customers = min(movement, max(0, customers - 25_000_000))
     movement -= withdraw_customers
 
-    withdraw_tristate = movement  # whatever remains
+    withdraw_tristate = movement
 
-    # Build result structure
     results = {
         "Tristate": {
             "action": "Withdraw" if withdraw_tristate > 0 else "No Action",
@@ -84,24 +90,36 @@ elif net_movement < 0:
         },
     }
 
-# Convert and display if results exist
+# --- Display Results ---
 if results:
     df = pd.DataFrame([
         {
             "Bank": bank,
             "Action": results[bank]["action"],
-            "Amount": f"${results[bank]['amount']:,.2f}",
-            "Ending Balance": f"${results[bank]['ending']:,.2f}"
+            "Amount": results[bank]["amount"],
+            "Ending Balance": results[bank]["ending"]
         }
         for bank in results
     ])
 
-    # Highlight deposits and withdrawals
+    total_movement = df["Amount"].sum()
+    df.loc[len(df)] = {
+        "Bank": "TOTAL",
+        "Action": "",
+        "Amount": total_movement,
+        "Ending Balance": ""
+    }
+
+    df["Amount"] = df["Amount"].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
+    df["Ending Balance"] = df["Ending Balance"].apply(lambda x: f"${x:,.2f}" if isinstance(x, (int, float)) else x)
+
     def highlight_action(row):
         if row["Action"] == "Withdraw":
             return ["background-color: #ffe6e6"] * 4
         elif row["Action"] == "Deposit":
             return ["background-color: #e6ffe6"] * 4
+        elif row["Bank"] == "TOTAL":
+            return ["background-color: #f0f0f0; font-weight: bold"] * 4
         return [""] * 4
 
     st.header("Allocation Results")
