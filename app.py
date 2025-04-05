@@ -1,149 +1,122 @@
-from ace_tools import code_from_text
-
-code_from_text(name="fpl_allocation_app", type="code/python", content="""import streamlit as st
+import streamlit as st
 import pandas as pd
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="FPL Allocation Tool", layout="centered")
 
-# Title
-st.markdown("<h1 style='text-align: center;'>FPL Allocation Tool</h1>", unsafe_allow_html=True)
+st.title("FPL Allocation Tool")
+st.header("Enter Current Balances")
 
-# Input columns and output columns side-by-side
-col1, col2 = st.columns(2)
+# Input fields
+tristate = st.number_input("Tristate", value=460_000_000.00, step=1.0)
+customers = st.number_input("Customer's Bank", value=50_000_000.00, step=1.0)
+wells = st.number_input("Wells Fargo", value=100_000_000.00, step=1.0)
+bmo = st.number_input("BMO", value=100_000.00, step=1.0)
+net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
 
-# Left column for inputs
-with col1:
-    st.header("Enter Current Balances")
+banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
+balances = [tristate, customers, wells, bmo]
+actions = []
+amounts = []
+ending_balances = []
 
-    tristate = st.number_input("Tristate Capital", value=0.0, format="%.2f")
-    customers = st.number_input("Customer's Bank", value=0.0, format="%.2f")
-    wells = st.number_input("Wells Fargo", value=0.0, format="%.2f")
-    bmo = st.number_input("BMO", value=0.0, format="%.2f")
-    net = st.number_input("Net Daily Movement", value=0.0, format="%.2f")
+remaining = net
 
-# Function to allocate deposits
-def allocate_deposits(net, tristate, customers, wells, bmo):
-    allocations = {"Tristate": 0, "Customer's": 0, "Wells Fargo": 0, "BMO": 0}
-    
-    # Initial maxes
-    tristate_target = 400_000_000
-    customer_max = 25_000_000
-    wells_max = 75_000_000
+if net < 0:
+    # Withdrawals: BMO → Wells → Customers → Tristate
+    targets = [100_000, 100_000, 25_000_000, -float("inf")]
+    for i, (bank, balance, target) in enumerate(zip(banks[::-1], balances[::-1], targets)):
+        available = balance - target
+        take = min(-remaining, available)
+        take = max(0, take)
+        actions.insert(0, "Withdraw")
+        amounts.insert(0, -take)
+        ending_balances.insert(0, balance - take)
+        remaining += take
+        if remaining >= 0:
+            break
+    # Fill in remaining with No Action
+    while len(actions) < 4:
+        actions.insert(0, "No Action")
+        amounts.insert(0, 0.0)
+        ending_balances.insert(0, balances[3 - len(actions)])
+else:
+    # Deposits: Tristate → Customer’s (25MM limit initially) → Wells (75MM) → Tristate again (up to 460MM) → Customer’s (up to 50MM)
+    initial_targets = [400_000_000, 25_000_000, 75_000_000]
+    later_targets = [460_000_000, 50_000_000]
+    deposits = [0, 0, 0, 0]
 
-    if tristate < tristate_target:
-        amount = min(net, tristate_target - tristate)
-        allocations["Tristate"] += amount
-        net -= amount
+    # Step 1: Tristate up to 400MM
+    if tristate < 400_000_000:
+        d = min(400_000_000 - tristate, remaining)
+        deposits[0] += d
+        remaining -= d
 
-    if net > 0 and customers < customer_max:
-        amount = min(net, customer_max - customers)
-        allocations["Customer's"] += amount
-        net -= amount
+    # Step 2: Customer’s up to 25MM
+    if customers < 25_000_000 and remaining > 0:
+        d = min(25_000_000 - customers, remaining)
+        deposits[1] += d
+        remaining -= d
 
-    if net > 0 and wells < wells_max:
-        amount = min(net, wells_max - wells)
-        allocations["Wells Fargo"] += amount
-        net -= amount
+    # Step 3: Wells up to 75MM
+    if wells < 75_000_000 and remaining > 0:
+        d = min(75_000_000 - wells, remaining)
+        deposits[2] += d
+        remaining -= d
 
-    # Dynamic limits after all are filled
-    if net > 0:
-        tristate_max = 460_000_000
-        if wells >= wells_max and customers >= customer_max and tristate < tristate_max:
-            amount = min(net, tristate_max - tristate)
-            allocations["Tristate"] += amount
-            net -= amount
+    # Step 4: Tristate up to 460MM
+    if tristate + deposits[0] < 460_000_000 and remaining > 0:
+        d = min(460_000_000 - (tristate + deposits[0]), remaining)
+        deposits[0] += d
+        remaining -= d
 
-    if net > 0 and customers < 50_000_000:
-        amount = min(net, 50_000_000 - customers)
-        allocations["Customer's"] += amount
-        net -= amount
+    # Step 5: Customer’s up to 50MM
+    if customers + deposits[1] < 50_000_000 and remaining > 0:
+        d = min(50_000_000 - (customers + deposits[1]), remaining)
+        deposits[1] += d
+        remaining -= d
 
-    if net > 0:
-        allocations["Wells Fargo"] += net
-        net = 0
+    # Step 6: Wells above 75MM
+    if remaining > 0:
+        deposits[2] += remaining
+        remaining = 0
 
-    return allocations
-
-# Function to allocate withdrawals
-def allocate_withdrawals(net, tristate, customers, wells, bmo):
-    allocations = {"Tristate": 0, "Customer's": 0, "Wells Fargo": 0, "BMO": 0}
-
-    if bmo > 100_000:
-        amount = min(abs(net), bmo - 100_000)
-        allocations["BMO"] -= amount
-        net += amount
-
-    if net < 0 and wells > 100_000:
-        amount = min(abs(net), wells - 100_000)
-        allocations["Wells Fargo"] -= amount
-        net += amount
-
-    if net < 0 and customers > 25_000_000:
-        amount = min(abs(net), customers - 25_000_000)
-        allocations["Customer's"] -= amount
-        net += amount
-
-    if net < 0:
-        allocations["Tristate"] += net
-        net = 0
-
-    return allocations
-
-# Right column for allocation results
-with col2:
-    st.header("Allocation Results")
-
-    if net != 0:
-        if net > 0:
-            allocation = allocate_deposits(net, tristate, customers, wells, bmo)
+    for i, d in enumerate(deposits):
+        if d > 0:
+            actions.append("Deposit")
+            amounts.append(d)
+            ending_balances.append(balances[i] + d)
         else:
-            allocation = allocate_withdrawals(net, tristate, customers, wells, bmo)
+            actions.append("No Action")
+            amounts.append(0.0)
+            ending_balances.append(balances[i])
 
-        df = pd.DataFrame([
-            {
-                "Bank": "Tristate",
-                "Action": "Deposit" if allocation["Tristate"] > 0 else ("Withdraw" if allocation["Tristate"] < 0 else "No Action"),
-                "Amount": f"${allocation['Tristate']:,.2f}",
-                "Ending Balance": f"${tristate + allocation['Tristate']:,.2f}"
-            },
-            {
-                "Bank": "Customer's",
-                "Action": "Deposit" if allocation["Customer's"] > 0 else ("Withdraw" if allocation["Customer's"] < 0 else "No Action"),
-                "Amount": f"${allocation['Customer's']:,.2f}",
-                "Ending Balance": f"${customers + allocation['Customer's']:,.2f}"
-            },
-            {
-                "Bank": "Wells Fargo",
-                "Action": "Deposit" if allocation["Wells Fargo"] > 0 else ("Withdraw" if allocation["Wells Fargo"] < 0 else "No Action"),
-                "Amount": f"${allocation['Wells Fargo']:,.2f}",
-                "Ending Balance": f"${wells + allocation['Wells Fargo']:,.2f}"
-            },
-            {
-                "Bank": "BMO",
-                "Action": "Deposit" if allocation["BMO"] > 0 else ("Withdraw" if allocation["BMO"] < 0 else "No Action"),
-                "Amount": f"${allocation['BMO']:,.2f}",
-                "Ending Balance": f"${bmo + allocation['BMO']:,.2f}"
-            },
-        ])
+# Format and display
+df = pd.DataFrame({
+    "Bank": banks,
+    "Action": actions,
+    "Amount": [f"${x:,.2f}" for x in amounts],
+    "Ending Balance": [f"${x:,.2f}" for x in ending_balances],
+})
 
-        total_amount = sum(allocation.values())
-        df.loc[len(df.index)] = {
-            "Bank": "TOTAL",
-            "Action": "",
-            "Amount": f"${total_amount:,.2f}",
-            "Ending Balance": ""
-        }
+# Add TOTAL row
+total_amount = sum(amounts)
+df.loc[len(df.index)] = {
+    "Bank": "TOTAL",
+    "Action": "",
+    "Amount": f"${total_amount:,.2f}",
+    "Ending Balance": ""
+}
 
-        def color_rows(row):
-            if row["Action"] == "Withdraw":
-                return ["background-color: #ffe6e6"] * 4
-            elif row["Action"] == "Deposit":
-                return ["background-color: #e6ffe6"] * 4
-            elif row["Bank"] == "TOTAL":
-                return ["background-color: #f2f2f2"] * 4
-            return [""] * 4
-
-        st.dataframe(df.style.apply(color_rows, axis=1), hide_index=True)
+# Color rows based on action
+def highlight_rows(row):
+    if row["Action"] == "Deposit":
+        return ["background-color: #d4f8d4"] * len(row)
+    elif row["Action"] == "Withdraw":
+        return ["background-color: #f8d4d4"] * len(row)
+    elif row["Bank"] == "TOTAL":
+        return ["background-color: #e0e0e0"] * len(row)
     else:
-        st.markdown("_Enter a non-zero Net Daily Movement to calculate allocation._")
-""")
+        return [""] * len(row)
+
+st.markdown("### Allocation Results")
+st.dataframe(df.style.apply(highlight_rows, axis=1), hide_index=True)
