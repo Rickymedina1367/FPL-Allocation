@@ -3,6 +3,15 @@ import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
 
+# Inject custom CSS to make number inputs grey
+st.markdown("""
+    <style>
+    input[type="number"] {
+        background-color: #f0f0f0 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("FPL Allocation Tool")
 
 # Split layout into two columns
@@ -13,7 +22,7 @@ with col1:
     tristate = st.number_input("Tristate", value=0.00, step=1.0)
     customers = st.number_input("Customer's Bank", value=0.00, step=1.0)
     wells = st.number_input("Wells Fargo", value=0.00, step=1.0)
-    bmo = st.number_input("BMO", value=100000.00, step=1.0)
+    bmo = st.number_input("BMO", value=0.00, step=1.0)
     net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
 
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
