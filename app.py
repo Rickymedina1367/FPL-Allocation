@@ -3,11 +3,13 @@ import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
 
-# Inject custom CSS to make number inputs grey
+# Inject custom CSS to apply grey background to number inputs
 st.markdown("""
     <style>
-    input[type="number"] {
+    /* Grey background for all number inputs */
+    div[data-baseweb="input"] input {
         background-color: #f0f0f0 !important;
+        color: black !important;
     }
     </style>
 """, unsafe_allow_html=True)
