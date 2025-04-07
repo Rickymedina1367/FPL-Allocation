@@ -13,7 +13,7 @@ with col1:
     tristate = st.number_input("Tristate", value=0.00, step=1.0)
     customers = st.number_input("Customer's Bank", value=0.00, step=1.0)
     wells = st.number_input("Wells Fargo", value=0.00, step=1.0)
-    bmo = st.number_input("BMO", value=0.00, step=1.0)
+    bmo = st.number_input("BMO", value=100000.00, step=1.0)
     net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
 
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
