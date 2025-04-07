@@ -3,18 +3,6 @@ import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
 
-# Inject working CSS for grey background on number inputs
-st.markdown("""
-    <style>
-    .grey-input > div > div > input {
-        background-color: #f0f0f0 !important;
-        color: black !important;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 st.title("FPL Allocation Tool")
 
 # Split layout into two columns
@@ -22,26 +10,11 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.header("Enter Current Balances")
-    
-    st.markdown('<div class="grey-input">', unsafe_allow_html=True)
-    tristate = st.number_input("Tristate", value=0.00, step=1.0, key="tristate")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="grey-input">', unsafe_allow_html=True)
-    customers = st.number_input("Customer's Bank", value=0.00, step=1.0, key="customers")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="grey-input">', unsafe_allow_html=True)
-    wells = st.number_input("Wells Fargo", value=0.00, step=1.0, key="wells")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="grey-input">', unsafe_allow_html=True)
-    bmo = st.number_input("BMO", value=0.00, step=1.0, key="bmo")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="grey-input">', unsafe_allow_html=True)
-    net = st.number_input("Net Daily Movement", value=0.00, step=1.0, key="net")
-    st.markdown('</div>', unsafe_allow_html=True)
+    tristate = st.number_input("Tristate", value=0.00, step=1.0)
+    customers = st.number_input("Customer's Bank", value=0.00, step=1.0)
+    wells = st.number_input("Wells Fargo", value=0.00, step=1.0)
+    bmo = st.number_input("BMO", value=100000.00, step=1.0)
+    net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
 
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
 balances = [tristate, customers, wells, bmo]
