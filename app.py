@@ -2,31 +2,31 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
-
 st.title("FPL Allocation Tool")
 
-# Two-column layout
+# Function to format input on blur (after typing)
+def currency_input(label, key):
+    raw = st.text_input(label, value=st.session_state.get(f"{key}_display", "0"), key=key)
+    try:
+        cleaned = raw.replace(",", "").strip()
+        amount = float(cleaned)
+        formatted = f"{amount:,.2f}"
+        st.session_state[f"{key}_display"] = formatted
+        return amount
+    except ValueError:
+        st.warning(f"Invalid number for {label}. Please enter digits and commas only.")
+        return 0.0
+
+# Split layout into two columns
 col1, col2 = st.columns(2)
 
 with col1:
     st.header("Enter Current Balances")
-
-    def parse_and_format(label, key):
-        raw = st.text_input(label, value="0", key=key)
-        try:
-            cleaned = raw.replace(",", "").strip()
-            amount = float(cleaned)
-            st.markdown(f"**Formatted:** ${amount:,.2f}")
-            return amount
-        except ValueError:
-            st.warning(f"Invalid number for {label}. Please enter digits and commas only.")
-            return 0.0
-
-    tristate = parse_and_format("Tristate", "tristate")
-    customers = parse_and_format("Customer's Bank", "customers")
-    wells = parse_and_format("Wells Fargo", "wells")
-    bmo = parse_and_format("BMO", "bmo")
-    net = parse_and_format("Net Daily Movement", "net")
+    tristate = currency_input("Tristate", "tristate")
+    customers = currency_input("Customer's Bank", "customers")
+    wells = currency_input("Wells Fargo", "wells")
+    bmo = currency_input("BMO", "bmo")
+    net = currency_input("Net Daily Movement", "net")
 
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
 balances = [tristate, customers, wells, bmo]
@@ -95,10 +95,9 @@ else:
             amounts.append(0.0)
             ending_balances.append(balances[i])
 
-# Output results
+# Create DataFrame
 with col2:
     st.markdown("### Allocation Results")
-
     df = pd.DataFrame({
         "Bank": banks,
         "Action": actions,
