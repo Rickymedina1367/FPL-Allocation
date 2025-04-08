@@ -3,18 +3,53 @@ import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
 
+# Inject JavaScript for auto-comma formatting
+st.markdown("""
+    <script>
+    function addCommas(input) {
+        input.value = input.value.replace(/,/g, '');
+        let parts = input.value.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        input.value = parts.join('.');
+    }
+
+    const observer = new MutationObserver((mutations, obs) => {
+        const fields = ['tristate', 'customers', 'wells', 'bmo', 'net'];
+        for (const id of fields) {
+            const input = parent.document.querySelector(`input[data-testid="stTextInput"][id$='-${id}']`);
+            if (input && !input.hasAttribute("data-commas-attached")) {
+                input.setAttribute("data-commas-attached", "true");
+                input.addEventListener('input', () => addCommas(input));
+            }
+        }
+    });
+
+    observer.observe(parent.document.body, { childList: true, subtree: true });
+    </script>
+""", unsafe_allow_html=True)
+
 st.title("FPL Allocation Tool")
 
-# Split layout into two columns
+# Two-column layout
 col1, col2 = st.columns(2)
 
 with col1:
     st.header("Enter Current Balances")
-    tristate = st.number_input("Tristate", value=0.00, step=1.0)
-    customers = st.number_input("Customer's Bank", value=0.00, step=1.0)
-    wells = st.number_input("Wells Fargo", value=0.00, step=1.0)
-    bmo = st.number_input("BMO", value=100000.00, step=1.0)
-    net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
+
+    def parse_currency(label, key):
+        raw = st.text_input(label, value="0", key=key)
+        try:
+            cleaned = raw.replace(",", "")
+            return float(cleaned)
+        except ValueError:
+            st.warning(f"Invalid number for {label}. Please enter numbers only.")
+            return 0.0
+
+    tristate = parse_currency("Tristate", "tristate")
+    customers = parse_currency("Customer's Bank", "customers")
+    wells = parse_currency("Wells Fargo", "wells")
+    bmo = parse_currency("BMO", "bmo")
+    net = parse_currency("Net Daily Movement", "net")
 
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
 balances = [tristate, customers, wells, bmo]
@@ -83,9 +118,10 @@ else:
             amounts.append(0.0)
             ending_balances.append(balances[i])
 
-# Create DataFrame
+# Output results
 with col2:
     st.markdown("### Allocation Results")
+
     df = pd.DataFrame({
         "Bank": banks,
         "Action": actions,
