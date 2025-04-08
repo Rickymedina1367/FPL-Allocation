@@ -3,31 +3,6 @@ import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
 
-# Inject JavaScript for auto-comma formatting
-st.markdown("""
-    <script>
-    function addCommas(input) {
-        input.value = input.value.replace(/,/g, '');
-        let parts = input.value.split('.');
-        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        input.value = parts.join('.');
-    }
-
-    const observer = new MutationObserver((mutations, obs) => {
-        const fields = ['tristate', 'customers', 'wells', 'bmo', 'net'];
-        for (const id of fields) {
-            const input = parent.document.querySelector(`input[data-testid="stTextInput"][id$='-${id}']`);
-            if (input && !input.hasAttribute("data-commas-attached")) {
-                input.setAttribute("data-commas-attached", "true");
-                input.addEventListener('input', () => addCommas(input));
-            }
-        }
-    });
-
-    observer.observe(parent.document.body, { childList: true, subtree: true });
-    </script>
-""", unsafe_allow_html=True)
-
 st.title("FPL Allocation Tool")
 
 # Two-column layout
@@ -36,20 +11,22 @@ col1, col2 = st.columns(2)
 with col1:
     st.header("Enter Current Balances")
 
-    def parse_currency(label, key):
+    def parse_and_format(label, key):
         raw = st.text_input(label, value="0", key=key)
         try:
-            cleaned = raw.replace(",", "")
-            return float(cleaned)
+            cleaned = raw.replace(",", "").strip()
+            amount = float(cleaned)
+            st.markdown(f"**Formatted:** ${amount:,.2f}")
+            return amount
         except ValueError:
-            st.warning(f"Invalid number for {label}. Please enter numbers only.")
+            st.warning(f"Invalid number for {label}. Please enter digits and commas only.")
             return 0.0
 
-    tristate = parse_currency("Tristate", "tristate")
-    customers = parse_currency("Customer's Bank", "customers")
-    wells = parse_currency("Wells Fargo", "wells")
-    bmo = parse_currency("BMO", "bmo")
-    net = parse_currency("Net Daily Movement", "net")
+    tristate = parse_and_format("Tristate", "tristate")
+    customers = parse_and_format("Customer's Bank", "customers")
+    wells = parse_and_format("Wells Fargo", "wells")
+    bmo = parse_and_format("BMO", "bmo")
+    net = parse_and_format("Net Daily Movement", "net")
 
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
 balances = [tristate, customers, wells, bmo]
