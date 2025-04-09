@@ -8,7 +8,7 @@ st.title("FPL Allocation Tool")
 st.markdown("""
     <style>
     html, body, div, input, label {
-        font-size: 17px !important;
+        font-size: 18px !important;
     }
     </style>
 """, unsafe_allow_html=True)
