@@ -25,23 +25,30 @@ ending_balances = []
 remaining = net
 
 if net < 0:
+    # Reverse banks and balances for withdrawal priority
+    reversed_banks = banks[::-1]
+    reversed_balances = balances[::-1]
     targets = [100_000, 100_000, 25_000_000, -float("inf")]
-    for i, (bank, balance, target) in enumerate(zip(banks[::-1], balances[::-1], targets)):
+
+    for i, (bank, balance, target) in enumerate(zip(reversed_banks, reversed_balances, targets)):
         available = balance - target
         take = min(-remaining, available)
         take = max(0, take)
-        actions.insert(0, "Withdraw")
+        actions.insert(0, "Withdraw" if take > 0 else "No Action")
         amounts.insert(0, -take)
         ending_balances.insert(0, balance - take)
         remaining += take
         if remaining >= 0:
             break
+
+    # Fill in remaining rows with No Action (correctly aligned)
     while len(actions) < 4:
+        i = 4 - len(actions) - 1
         actions.insert(0, "No Action")
         amounts.insert(0, 0.0)
-        ending_balances.insert(0, balances[3 - len(actions)])
+        ending_balances.insert(0, balances[i])
 else:
-    initial_targets = [400_000_000, 25_000_000, 75_000_000]
+    # Deposit logic
     deposits = [0, 0, 0, 0]
 
     if tristate < 400_000_000:
