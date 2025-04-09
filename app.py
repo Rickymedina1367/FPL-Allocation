@@ -2,45 +2,20 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
+
 st.title("FPL Allocation Tool")
 
-# --- Input Formatting Logic ---
-with st.form("fpl_form"):
+# Split layout into two columns
+col1, col2 = st.columns(2)
+
+with col1:
     st.header("Enter Current Balances")
+    tristate = st.number_input("Tristate", value=0.00, step=1.0)
+    customers = st.number_input("Customer's Bank", value=0.00, step=1.0)
+    wells = st.number_input("Wells Fargo", value=0.00, step=1.0)
+    bmo = st.number_input("BMO", value=100000.00, step=1.0)
+    net = st.number_input("Net Daily Movement", value=0.00, step=1.0)
 
-    raw_tristate = st.text_input("Tristate", value=st.session_state.get("tristate_display", "0"))
-    raw_customers = st.text_input("Customer's Bank", value=st.session_state.get("customers_display", "0"))
-    raw_wells = st.text_input("Wells Fargo", value=st.session_state.get("wells_display", "0"))
-    raw_bmo = st.text_input("BMO", value=st.session_state.get("bmo_display", "0"))
-    raw_net = st.text_input("Net Daily Movement", value=st.session_state.get("net_display", "0"))
-
-    submitted = st.form_submit_button("Confirm Inputs")
-
-def parse_and_format(raw, key):
-    try:
-        cleaned = raw.replace(",", "").strip()
-        amount = float(cleaned)
-        formatted = f"{amount:,.2f}"
-        st.session_state[f"{key}_display"] = formatted
-        return amount
-    except:
-        return 0.0
-
-if submitted:
-    tristate = parse_and_format(raw_tristate, "tristate")
-    customers = parse_and_format(raw_customers, "customers")
-    wells = parse_and_format(raw_wells, "wells")
-    bmo = parse_and_format(raw_bmo, "bmo")
-    net = parse_and_format(raw_net, "net")
-else:
-    # Initial load fallback
-    tristate = float(raw_tristate.replace(",", "") or 0)
-    customers = float(raw_customers.replace(",", "") or 0)
-    wells = float(raw_wells.replace(",", "") or 0)
-    bmo = float(raw_bmo.replace(",", "") or 0)
-    net = float(raw_net.replace(",", "") or 0)
-
-# --- Allocation Logic ---
 banks = ["Tristate", "Customer's", "Wells Fargo", "BMO"]
 balances = [tristate, customers, wells, bmo]
 actions = []
@@ -108,31 +83,32 @@ else:
             amounts.append(0.0)
             ending_balances.append(balances[i])
 
-# --- Output Allocation Results ---
-st.markdown("### Allocation Results")
-df = pd.DataFrame({
-    "Bank": banks,
-    "Action": actions,
-    "Amount": [f"${x:,.2f}" for x in amounts],
-    "Ending Balance": [f"${x:,.2f}" for x in ending_balances],
-})
+# Create DataFrame
+with col2:
+    st.markdown("### Allocation Results")
+    df = pd.DataFrame({
+        "Bank": banks,
+        "Action": actions,
+        "Amount": [f"${x:,.2f}" for x in amounts],
+        "Ending Balance": [f"${x:,.2f}" for x in ending_balances],
+    })
 
-total_amount = sum(amounts)
-df.loc[len(df.index)] = {
-    "Bank": "TOTAL",
-    "Action": "",
-    "Amount": f"${total_amount:,.2f}",
-    "Ending Balance": ""
-}
+    total_amount = sum(amounts)
+    df.loc[len(df.index)] = {
+        "Bank": "TOTAL",
+        "Action": "",
+        "Amount": f"${total_amount:,.2f}",
+        "Ending Balance": ""
+    }
 
-def highlight_rows(row):
-    if row["Action"] == "Deposit":
-        return ["background-color: #d4f8d4"] * len(row)
-    elif row["Action"] == "Withdraw":
-        return ["background-color: #f8d4d4"] * len(row)
-    elif row["Bank"] == "TOTAL":
-        return ["background-color: #e0e0e0"] * len(row)
-    else:
-        return [""] * len(row)
+    def highlight_rows(row):
+        if row["Action"] == "Deposit":
+            return ["background-color: #d4f8d4"] * len(row)
+        elif row["Action"] == "Withdraw":
+            return ["background-color: #f8d4d4"] * len(row)
+        elif row["Bank"] == "TOTAL":
+            return ["background-color: #e0e0e0"] * len(row)
+        else:
+            return [""] * len(row)
 
-st.dataframe(df.style.apply(highlight_rows, axis=1), hide_index=True, use_container_width=True)
+    st.dataframe(df.style.apply(highlight_rows, axis=1), hide_index=True, use_container_width=True)
