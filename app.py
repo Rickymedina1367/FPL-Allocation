@@ -5,6 +5,14 @@ st.set_page_config(page_title="FPL Allocation Tool", layout="wide")
 
 st.title("FPL Allocation Tool")
 
+st.markdown("""
+    <style>
+    html, body, div, input, label {
+        font-size: 18px !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Split layout into two columns
 col1, col2 = st.columns([1, 2])
 
